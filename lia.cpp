@@ -21,6 +21,9 @@ float distances[3];
 // Mutex para sincronizar el acceso a los sensores infrarrojos
 SemaphoreHandle_t irSensorMutex;
 
+// Mutex para sincronizar el acceso a los sensores de seguimiento
+SemaphoreHandle_t trackerSensorMutex;
+
 // Funciones para controlar los motores
 void moveForward() {
   digitalWrite(LEFT_MOTOR_FORWARD, LOW);
@@ -71,23 +74,23 @@ void backupAndTurn() {
 // Función para manejar los sensores infrarrojos
 void irSensorThread(void *param) {
   while (true) {
-    // Tomar el mutex para acceder a los sensores infrarrojos
-    xSemaphoreTake(irSensorMutex, portMAX_DELAY);
+    // Intentar tomar el mutex con un timeout para evitar deadlocks
+    if (xSemaphoreTake(irSensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      float SIR_Centro = analogRead(IR_Sensor_Centro);
+      float SIR_Derecho = analogRead(IR_Sensor_Derecho);
+      float SIR_Izquierdo = analogRead(IR_Sensor_Izquierdo);
+      xSemaphoreGive(irSensorMutex);  // Liberar el mutex tan pronto como sea posible
 
-    float SIR_Centro = analogRead(IR_Sensor_Centro);
-    float SIR_Derecho = analogRead(IR_Sensor_Derecho);
-    float SIR_Izquierdo = analogRead(IR_Sensor_Izquierdo);
+      float voltageCentro = SIR_Centro * (5.0 / 4095.0);
+      float voltageDerecho = SIR_Derecho * (5.0 / 4095.0);
+      float voltageIzquierdo = SIR_Izquierdo * (5.0 / 4095.0);
 
-    float voltageCentro = SIR_Centro * (5.0 / 4095.0);
-    float voltageDerecho = SIR_Derecho * (5.0 / 4095.0);
-    float voltageIzquierdo = SIR_Izquierdo * (5.0 / 4095.0);
-
-    distances[0] = 27.728 * pow(voltageCentro, -1.2045);  // Distancia Centro
-    distances[1] = 27.728 * pow(voltageIzquierdo, -1.2045);  // Distancia Izquierdo
-    distances[2] = 27.728 * pow(voltageDerecho, -1.2045);  // Distancia Derecho
-
-    // Liberar el mutex
-    xSemaphoreGive(irSensorMutex);
+      distances[0] = 27.728 * pow(voltageCentro, -1.2045);  // Distancia Centro
+      distances[1] = 27.728 * pow(voltageIzquierdo, -1.2045);  // Distancia Izquierdo
+      distances[2] = 27.728 * pow(voltageDerecho, -1.2045);  // Distancia Derecho
+    } else {
+      Serial.println("Error: No se pudo tomar el mutex a tiempo.");
+    }
 
     delay(50);  // Tiempo de espera reducido para mayor velocidad
   }
@@ -95,14 +98,16 @@ void irSensorThread(void *param) {
 
 // Nueva función para detectar un oponente
 bool detectOpponent() {
-  // Tomar el mutex para acceder a los sensores infrarrojos
-  xSemaphoreTake(irSensorMutex, portMAX_DELAY);
+  bool opponentDetected = false;
 
-  // Verificar si alguna distancia es menor que un umbral, indicando un oponente
-  bool opponentDetected = (distances[0] < 55 || distances[1] < 55 || distances[2] < 55);
-
-  // Liberar el mutex
-  xSemaphoreGive(irSensorMutex);
+  // Intentar tomar el mutex con un timeout para evitar deadlocks
+  if (xSemaphoreTake(irSensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    // Verificar si alguna distancia es menor que un umbral, indicando un oponente
+    opponentDetected = (distances[0] < 55 || distances[1] < 55 || distances[2] < 55);
+    xSemaphoreGive(irSensorMutex);  // Liberar el mutex tan pronto como sea posible
+  } else {
+    Serial.println("Error: No se pudo tomar el mutex a tiempo.");
+  }
 
   return opponentDetected;
 }
@@ -110,8 +115,16 @@ bool detectOpponent() {
 // Función para manejar el movimiento de los motores y los sensores de seguimiento
 void motorThread(void *param) {
   while (true) {
-    int leftTrackerValue = analogRead(LEFT_TRACKER_PIN);
-    int rightTrackerValue = analogRead(RIGHT_TRACKER_PIN);
+    int leftTrackerValue, rightTrackerValue;
+
+    // Intentar tomar el mutex con un timeout para evitar deadlocks
+    if (xSemaphoreTake(trackerSensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      leftTrackerValue = analogRead(LEFT_TRACKER_PIN);
+      rightTrackerValue = analogRead(RIGHT_TRACKER_PIN);
+      xSemaphoreGive(trackerSensorMutex);  // Liberar el mutex tan pronto como sea posible
+    } else {
+      Serial.println("Error: No se pudo tomar el mutex de los sensores de seguimiento a tiempo.");
+    }
 
     // Verificar si el valor del sensor izquierdo o derecho es >= 100
     if (leftTrackerValue >= 100 || rightTrackerValue >= 100) {
@@ -135,12 +148,12 @@ void motorThread(void *param) {
       moveForward();
     }
 
-    if (distances[0] < 9 ) {
+    if (distances[0] < 9) {
       moveForward();
-    } else if( distances[1] < 9 ){
+    } else if (distances[1] < 9) {
       turnLeft();
       moveForward();
-    } else if( distances[2] < 9 ){
+    } else if (distances[2] < 9) {
       turnRight();
       moveForward();
     } else {
@@ -171,6 +184,9 @@ void setup() {
 
   // Crear el mutex para sincronizar el acceso a los sensores infrarrojos
   irSensorMutex = xSemaphoreCreateMutex();
+  
+  // Crear el mutex para sincronizar el acceso a los sensores de seguimiento
+  trackerSensorMutex = xSemaphoreCreateMutex();
 
   // Espera de 3 segundos antes de comenzar
   Serial.println("Esperando 3 segundos antes de comenzar...");
