@@ -93,6 +93,20 @@ void irSensorThread(void *param) {
   }
 }
 
+// Nueva función para detectar un oponente
+bool detectOpponent() {
+  // Tomar el mutex para acceder a los sensores infrarrojos
+  xSemaphoreTake(irSensorMutex, portMAX_DELAY);
+
+  // Verificar si alguna distancia es menor que un umbral, indicando un oponente
+  bool opponentDetected = (distances[0] < 55 || distances[1] < 55 || distances[2] < 55);
+
+  // Liberar el mutex
+  xSemaphoreGive(irSensorMutex);
+
+  return opponentDetected;
+}
+
 // Función para manejar el movimiento de los motores y los sensores de seguimiento
 void motorThread(void *param) {
   while (true) {
@@ -106,8 +120,8 @@ void motorThread(void *param) {
       backupAndTurn();
     }
 
-    // Verificar si algún objeto está a menos de 45 cm
-    if (distances[0] < 45 || distances[1] < 45 || distances[2] < 45) {
+    // Usar la nueva función para detectar un oponente
+    if (detectOpponent()) {
       if (distances[1] < distances[0] && distances[1] < distances[2]) {
         turnLeft();
         moveForward();
