@@ -10,6 +10,9 @@
 #define LEFT_TRACKER_PIN 39
 #define RIGHT_TRACKER_PIN 36
 
+#define CLOSE_DISTANCE_THRESHOLD 5  // 5 cm
+#define CLOSE_DISTANCE_TIME 3000  // 3 segundos en milisegundos
+
 // Pines de los sensores infrarrojos
 const int IR_Sensor_Centro = 14;
 const int IR_Sensor_Derecho = 13;
