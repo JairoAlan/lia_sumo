@@ -71,9 +71,9 @@ void stop() {
 
 void backupAndTurn() {
   moveBackward();
-  delay(500);
-  stop();
-  delay(100);
+  delay(600);
+
+  delay(50);
   turnLeft(45);
   stop();
 }
@@ -121,7 +121,7 @@ void irSensorThread(void *param) {
 void handleTrackingSensors() {
   int leftTrackerValue, rightTrackerValue;
 
-  if (xSemaphoreTake(trackerSensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+  if (xSemaphoreTake(trackerSensorMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
     leftTrackerValue = analogRead(LEFT_TRACKER_PIN);
     rightTrackerValue = analogRead(RIGHT_TRACKER_PIN);
     xSemaphoreGive(trackerSensorMutex);
@@ -198,7 +198,7 @@ void zigzag() {
     }
     handleTrackingSensors();
     moveForward();
-    delay(200);
+    delay(100);
     turnLeft(10);
     if (detectOpponent() || detectOpponentCerca()) {
       followOpponent();
@@ -206,7 +206,7 @@ void zigzag() {
     }
     handleTrackingSensors();
     moveForward();
-    delay(200);
+    delay(100);
     turnRight(20);
     if (detectOpponent() || detectOpponentCerca()) {
       followOpponent();
@@ -214,7 +214,7 @@ void zigzag() {
     }
     handleTrackingSensors();
     moveForward();
-    delay(200);
+    delay(100);
     turnLeft(10);
   }
 }
