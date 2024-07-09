@@ -71,14 +71,12 @@ void stop() {
 
 void backupAndTurn() {
   moveBackward();
-  delay(600);
-
-  delay(50);
-  turnLeft(45);
-  stop();
+  delay(650);
+  turnLeft(35);
 }
 
 // Función para leer los sensores infrarrojos y calcular las distancias
+
 void readIRSensors() {
   if (xSemaphoreTake(irSensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
     float SIR_Centro = analogRead(IR_Sensor_Centro);
@@ -93,10 +91,10 @@ void readIRSensors() {
     distances[0] = 27.728 * pow(voltageCentro, -1.2045);
     distances[1] = 27.728 * pow(voltageIzquierdo, -1.2045);
     distances[2] = 27.728 * pow(voltageDerecho, -1.2045);
-  } else {
-    Serial.println("Error: No se pudo tomar el mutex a tiempo.");
-  }
+
+  } 
 }
+
 
 // Función para seguir al oponente
 void followOpponent() {
@@ -141,7 +139,7 @@ bool detectOpponent() {
   bool opponentDetected = false;
 
   if (xSemaphoreTake(irSensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    opponentDetected = (distances[0] < 45 || distances[1] < 45 || distances[2] < 45);
+    opponentDetected = (distances[0] < 25 || distances[1] < 25 || distances[2] < 25);
     xSemaphoreGive(irSensorMutex);
   } else {
     Serial.println("Error: No se pudo tomar el mutex a tiempo.");
@@ -191,14 +189,14 @@ void handleState() {
 
 void zigzag() {
   unsigned long startTime = millis();
-  while (millis() - startTime < 1000) { // 1 segundo de búsqueda
+  while (millis() - startTime < 2500) { //  segundo de búsqueda
     if (detectOpponent() || detectOpponentCerca()) {
       followOpponent();
       return;
     }
     handleTrackingSensors();
     moveForward();
-    delay(100);
+    delay(250);
     turnLeft(10);
     if (detectOpponent() || detectOpponentCerca()) {
       followOpponent();
@@ -206,7 +204,7 @@ void zigzag() {
     }
     handleTrackingSensors();
     moveForward();
-    delay(100);
+    delay(250);
     turnRight(20);
     if (detectOpponent() || detectOpponentCerca()) {
       followOpponent();
@@ -214,7 +212,7 @@ void zigzag() {
     }
     handleTrackingSensors();
     moveForward();
-    delay(100);
+    delay(250);
     turnLeft(10);
   }
 }
@@ -264,10 +262,7 @@ void dynamicAvoidance() {
 void backupAndTurnSharp() {
   moveBackward();
   delay(300);
-  stop();
-  delay(100);
   turnLeft(90);
-  stop();
 }
 
 void motorThread(void *param) {
